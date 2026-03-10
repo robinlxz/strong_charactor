@@ -1,0 +1,14 @@
+[Unit]
+Description=Strong Character AI Companion Service
+After=network.target
+
+[Service]
+User=root
+Group=root
+WorkingDirectory=/path/to/project
+EnvironmentFile=/path/to/project/.env
+ExecStart=/path/to/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker backend.app.main:app --bind 0.0.0.0:8000 --workers 1 --access-logfile - --error-logfile -
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
