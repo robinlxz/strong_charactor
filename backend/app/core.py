@@ -6,10 +6,10 @@ from . import models
 
 # Initialize OpenAI Client
 client = AsyncOpenAI(
-    api_key=os.getenv("OPENAI_API_KEY"),
-    base_url=os.getenv("OPENAI_BASE_URL"),
+    api_key=os.getenv("TEXT_GEN_API_KEY"),
+    base_url=os.getenv("TEXT_GEN_BASE_URL"),
 )
-MODEL_ID = os.getenv("OPENAI_MODEL", "gpt-3.5-turbo") # Fallback default
+MODEL_ID = os.getenv("TEXT_GEN_MODEL_ENDPOINT", "gpt-3.5-turbo") # Fallback default
 
 SYSTEM_PROMPT_TEMPLATE = os.getenv("SYSTEM_PROMPT", """
 You are a conversational AI companion. 
