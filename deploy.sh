@@ -43,6 +43,10 @@ if command -v apt-get >/dev/null; then
         NODE_VERSION=$(node -v | cut -d. -f1 | tr -d 'v')
         if [ "$NODE_VERSION" -lt 18 ]; then
             echo "Node.js version $NODE_VERSION is too old. Updating to LTS..."
+            # Try to remove old nodejs first to avoid conflicts
+            sudo apt-get remove -y nodejs libnode-dev || true
+            sudo apt-get autoremove -y || true
+            
             curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
             sudo apt-get install -y nodejs
         fi
