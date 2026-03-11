@@ -130,8 +130,9 @@ cp $SERVICE_TEMPLATE "${SERVICE_TEMPLATE}.tmp"
 # Replace placeholders using sed
 # 1. Update WorkingDirectory
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=$PROJECT_ROOT|g" "${SERVICE_TEMPLATE}.tmp"
-# 2. Update ExecStart (Use Gunicorn from venv, with Uvicorn worker)
-sed -i "s|ExecStart=.*|ExecStart=$VENV_GUNICORN -k uvicorn.workers.UvicornWorker backend.app.main:app --bind 0.0.0.0:8000 --workers 1 --access-logfile - --error-logfile -|g" "${SERVICE_TEMPLATE}.tmp"
+# 2. Update ExecStart (Use Uvicorn directly to avoid Gunicorn worker issues)
+VENV_UVICORN="$PROJECT_ROOT/venv/bin/uvicorn"
+sed -i "s|ExecStart=.*|ExecStart=$VENV_UVICORN backend.app.main:app --host 0.0.0.0 --port 8000 --log-level info|g" "${SERVICE_TEMPLATE}.tmp"
 # 3. Update User
 sed -i "s|User=.*|User=$CURRENT_USER|g" "${SERVICE_TEMPLATE}.tmp"
 # 4. Update Group (Assume group is same as user, or 'users', or keep root if user is root)
