@@ -40,6 +40,12 @@ if command -v apt-get >/dev/null; then
     else
         echo "Node.js is already installed: $(node -v)"
     fi
+    
+    # Ensure npm is installed (sometimes it's a separate package in some distros, though usually included with nodejs)
+    if ! command -v npm >/dev/null; then
+        echo "npm not found. Installing npm..."
+        sudo apt-get install -y npm
+    fi
 else
     echo -e "${RED}Error: This script supports Ubuntu/Debian/veLinux (apt) only.${NC}"
     echo "Please install python3-venv, python3-pip, git, and nodejs manually."
