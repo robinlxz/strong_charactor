@@ -157,16 +157,20 @@ function App() {
       
       // Refresh state
       setTimeout(async () => {
-        const stateRes = await axios.get(`${API_BASE}/api/state/${sessionId}`);
-        setEmotion(stateRes.data.emotion);
-        setIntimacy(stateRes.data.intimacy);
+        try {
+          const stateRes = await axios.get(`${API_BASE}/api/state/${sessionId}`);
+          setEmotion(stateRes.data.emotion);
+          setIntimacy(stateRes.data.intimacy);
+        } catch (error) {
+           console.error("Failed to update state", error);
+        }
       }, 2000);
 
     } catch (error) {
       console.error("Chat error", error);
       setMessages(prev => {
          // Remove the empty placeholder if error occurred immediately
-         if (prev[prev.length-1].content === '') {
+         if (prev.length > 0 && prev[prev.length-1].role === 'assistant' && prev[prev.length-1].content === '') {
              return prev.slice(0, -1);
          }
          return [...prev, { role: 'assistant', content: "Error: Failed to get response." }];
