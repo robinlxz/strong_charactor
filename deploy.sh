@@ -66,10 +66,13 @@ fi
 # 2. Frontend Build
 echo -e "${YELLOW}[2/6] Building Frontend...${NC}"
 cd frontend
-if [ ! -d "node_modules" ]; then
-    echo "Installing frontend dependencies..."
-    npm install
+if [ -d "node_modules" ]; then
+    echo "Cleaning old node_modules to avoid compatibility issues..."
+    rm -rf node_modules package-lock.json
 fi
+
+echo "Installing frontend dependencies..."
+npm install
 echo "Building React app..."
 npm run build
 cd ..
