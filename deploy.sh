@@ -39,6 +39,13 @@ if command -v apt-get >/dev/null; then
         sudo apt-get install -y nodejs
     else
         echo "Node.js is already installed: $(node -v)"
+        # Check Node.js version, if too old (e.g. v12), update it
+        NODE_VERSION=$(node -v | cut -d. -f1 | tr -d 'v')
+        if [ "$NODE_VERSION" -lt 18 ]; then
+            echo "Node.js version $NODE_VERSION is too old. Updating to LTS..."
+            curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+            sudo apt-get install -y nodejs
+        fi
     fi
     
     # Ensure npm is installed (sometimes it's a separate package in some distros, though usually included with nodejs)
