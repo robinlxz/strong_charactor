@@ -1,15 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
 from . import database, models, core
+import os
 
 router = APIRouter()
+
+# Simple Access Control
+ACCESS_CODE = os.getenv("ACCESS_CODE")
 
 class ChatRequest(BaseModel):
     session_id: str
     message: str
+    access_code: Optional[str] = None
 
 class StateResponse(BaseModel):
     emotion: str
@@ -19,8 +24,23 @@ class Message(BaseModel):
     role: str
     content: str
 
+class VerifyRequest(BaseModel):
+    access_code: str
+
+class ResetRequest(BaseModel):
+    session_id: str
+    access_code: Optional[str] = None
+
 def get_db():
     yield from database.get_db()
+
+@router.post("/verify")
+def verify_access(request: VerifyRequest):
+    if not ACCESS_CODE: # If no code configured, always allow
+        return {"status": "ok"}
+    if request.access_code == ACCESS_CODE:
+        return {"status": "ok"}
+    raise HTTPException(status_code=401, detail="Invalid access code")
 
 @router.get("/state/{session_id}", response_model=StateResponse)
 def get_state(session_id: str, db: Session = Depends(get_db)):
@@ -34,8 +54,32 @@ def get_history(session_id: str, db: Session = Depends(get_db)):
     history = db.query(models.ChatHistory).filter(models.ChatHistory.session_id == session_id).order_by(models.ChatHistory.timestamp.asc()).all()
     return [Message(role=msg.role, content=msg.content) for msg in history]
 
+@router.post("/reset")
+def reset_chat(request: ResetRequest, db: Session = Depends(get_db)):
+    # Verify Access Code if set
+    if ACCESS_CODE and request.access_code != ACCESS_CODE:
+        raise HTTPException(status_code=401, detail="Invalid access code")
+        
+    # Delete History
+    db.query(models.ChatHistory).filter(models.ChatHistory.session_id == request.session_id).delete()
+    
+    # Reset State
+    state = db.query(models.CharacterState).filter(models.CharacterState.session_id == request.session_id).first()
+    if state:
+        state.emotion = "neutral"
+        state.intimacy = 50
+        # If .env has initial settings, could use those, but hardcoded defaults for now or logic in models/core
+        # models.CharacterState default is neutral/50
+    
+    db.commit()
+    return {"status": "reset", "emotion": "neutral", "intimacy": 50}
+
 @router.post("/chat")
 async def chat(request: ChatRequest, db: Session = Depends(get_db)):
+    # Verify Access Code if set
+    if ACCESS_CODE and request.access_code != ACCESS_CODE:
+        raise HTTPException(status_code=401, detail="Invalid access code")
+
     # 1. Save User Message
     user_msg = models.ChatHistory(
         session_id=request.session_id,
