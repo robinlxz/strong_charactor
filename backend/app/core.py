@@ -4,11 +4,18 @@ from openai import AsyncOpenAI
 from sqlalchemy.orm import Session
 from . import models
 
-# Initialize OpenAI Client
-client = AsyncOpenAI(
-    api_key=os.getenv("TEXT_GEN_API_KEY"),
-    base_url=os.getenv("TEXT_GEN_BASE_URL"),
-)
+# Lazy Initialize OpenAI Client
+_client = None
+
+def get_client():
+    global _client
+    if _client is None:
+        _client = AsyncOpenAI(
+            api_key=os.getenv("TEXT_GEN_API_KEY"),
+            base_url=os.getenv("TEXT_GEN_BASE_URL"),
+        )
+    return _client
+
 MODEL_ID = os.getenv("TEXT_GEN_MODEL_ENDPOINT", "gpt-3.5-turbo") # Fallback default
 
 SYSTEM_PROMPT_TEMPLATE = os.getenv("SYSTEM_PROMPT", """
@@ -65,6 +72,7 @@ async def stream_chat_response(state, history, user_message: str):
     Async Generator that streams the response from OpenAI.
     Does NOT access DB.
     """
+    client = get_client()
     messages = []
     
     # System Prompt
@@ -104,6 +112,8 @@ async def update_character_state(db: Session, session_id: str, user_message: str
     # but SQLAlchemy session is sync. We should run sync DB ops in threadpool or use async session.
     # For POC simplicity, we'll keep sync DB access but run in threadpool if needed, 
     # or just accept minor blocking since it's a background task.
+    
+    client = get_client()
     
     # Re-query state to get latest version
     state = db.query(models.CharacterState).filter(models.CharacterState.session_id == session_id).first()
