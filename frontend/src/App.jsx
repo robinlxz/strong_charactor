@@ -4,7 +4,7 @@ import StatusBar from './components/StatusBar';
 import ChatBubble from './components/ChatBubble';
 import { Send, Loader2, Lock, RotateCcw } from 'lucide-react';
 
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_BASE || '';
 
 function App() {
   // --- Access Control ---
