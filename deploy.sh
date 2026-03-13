@@ -130,9 +130,9 @@ cp $SERVICE_TEMPLATE "${SERVICE_TEMPLATE}.tmp"
 # Replace placeholders using sed
 # 1. Update WorkingDirectory
 sed -i "s|WorkingDirectory=.*|WorkingDirectory=$PROJECT_ROOT|g" "${SERVICE_TEMPLATE}.tmp"
-# 2. Update ExecStart (Use Uvicorn directly to avoid Gunicorn worker issues)
+# 2. Update ExecStart (Use Uvicorn on localhost:8001; fronted by Nginx on 8000)
 VENV_UVICORN="$PROJECT_ROOT/venv/bin/uvicorn"
-sed -i "s|ExecStart=.*|ExecStart=$VENV_UVICORN backend.app.main:app --host 0.0.0.0 --port 8000 --log-level info|g" "${SERVICE_TEMPLATE}.tmp"
+sed -i "s|ExecStart=.*|ExecStart=$VENV_UVICORN backend.app.main:app --host 127.0.0.1 --port 8001 --log-level info|g" "${SERVICE_TEMPLATE}.tmp"
 # 3. Update User
 sed -i "s|User=.*|User=$CURRENT_USER|g" "${SERVICE_TEMPLATE}.tmp"
 # 4. Update Group (Assume group is same as user, or 'users', or keep root if user is root)
@@ -152,6 +152,52 @@ echo "Enabling $TARGET_SERVICE_NAME..."
 sudo systemctl enable $TARGET_SERVICE_NAME
 echo "Restarting $TARGET_SERVICE_NAME..."
 sudo systemctl restart $TARGET_SERVICE_NAME
+
+# Nginx reverse proxy (listen 8000 -> 127.0.0.1:8001)
+if ! command -v nginx >/dev/null; then
+  echo "Installing nginx..."
+  sudo apt-get install -y nginx
+fi
+
+NGINX_SITE_PATH="/etc/nginx/sites-available/strong_charactor"
+NGINX_SITE_LINK="/etc/nginx/sites-enabled/strong_charactor"
+echo "Writing Nginx site config to $NGINX_SITE_PATH"
+sudo bash -c "cat > $NGINX_SITE_PATH" <<'NGXCONF'
+server {
+    listen 8000;
+    server_name _;
+    client_max_body_size 10m;
+
+    location = /openapi.json { return 404; }
+    location = /docs { return 404; }
+    location = /redoc { return 404; }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8001;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 300s;
+    }
+}
+NGXCONF
+
+sudo ln -sf "$NGINX_SITE_PATH" "$NGINX_SITE_LINK"
+if [ -f "/etc/nginx/sites-enabled/default" ]; then
+  sudo rm -f /etc/nginx/sites-enabled/default
+fi
+sudo nginx -t
+sudo systemctl restart nginx
 
 echo -e "${GREEN}>>> Deployment Complete!${NC}"
 echo -e "Service status:"

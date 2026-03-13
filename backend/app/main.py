@@ -7,7 +7,12 @@ import os
 # Initialize DB (now uses lazy engine internally)
 database.init_db()
 
-app = FastAPI(title="Strong Character AI")
+app_name = os.getenv("APP_PUBLIC_NAME", "App")
+enable_docs = os.getenv("ENABLE_DOCS", "false").lower() in ("1", "true", "yes", "on")
+if enable_docs:
+    app = FastAPI(title=app_name)
+else:
+    app = FastAPI(title=app_name, docs_url=None, redoc_url=None, openapi_url=None)
 
 # CORS
 app.add_middleware(
@@ -24,6 +29,13 @@ app.include_router(api.router, prefix="/api")
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.middleware("http")
+async def strip_headers(request, call_next):
+    response = await call_next(request)
+    response.headers.pop("server", None)
+    response.headers.pop("x-powered-by", None)
+    return response
 
 # Serve Frontend Static Files (if built)
 # MOVED TO END to ensure /health and /api are matched first
