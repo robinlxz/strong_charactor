@@ -33,8 +33,10 @@ def health_check():
 @app.middleware("http")
 async def strip_headers(request, call_next):
     response = await call_next(request)
-    response.headers.pop("server", None)
-    response.headers.pop("x-powered-by", None)
+    # Starlette MutableHeaders doesn't support .pop; use safe deletion
+    for h in ("server", "x-powered-by"):
+        if h in response.headers:
+            del response.headers[h]
     return response
 
 # Serve Frontend Static Files (if built)
